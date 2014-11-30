@@ -61,7 +61,7 @@ def preview(timeDelay, status='r'):
             text = ":)  SMILE   NOW   !!  " + str(timeDelay) 
             textSurface = font.render(text, 1, pygame.Color(255, 255, 255))
             textSurface = pygame.transform.rotate(textSurface,90)
-            screen.blit(textSurface, (400, 175))
+            screen.blit(textSurface, (400, 80))
      
             # finally update and display the image
             pygame.display.update()
@@ -98,17 +98,19 @@ def preview(timeDelay, status='r'):
         
 
 def start_photobooth():
+    ##for the first PIC
+    preview(3)
+    
     while (True):
-        preview(3)
         try: #take the photos
             for i, filename in enumerate(camera.capture_continuous(file_path + now + '-' + '{counter:02d}.jpg')):
                 print(filename)
                ## time.sleep(0.25) #pause the LED on for just a bit
                ## time.sleep(capture_delay) # pause in-between shots
-                preview(4)
                 if i == total_pics-1:
                     GPIO.output(led1_pin,False);
                     break
+                preview(3)
         finally:
             camera.close()
             break
