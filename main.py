@@ -13,52 +13,37 @@ import socket
 import config
 import pygame
 import io
+from config import *
 
 
-total_pics = 4 # number of pics  to be taken
-capture_delay = 3 # delay between pics
-file_path = '/home/pi/photobooth/pics/'
-file_path_arch = '/home/pi/PB_archive/'
-now = time.strftime("%H%M%S")
-led1_pin = 18
-button1_pin = 17
-test_server = 'google.com'
-addr_to   = '*****************' 
-addr_from = '******************' # change to your full gmail address
-user_name = '************' # change to your gmail username
-password = '*********' # change to your gmail password
-test_server = 'www.google.com'
-WIDTH=1280
-HEIGHT=1024
-FONTSIZE=50
 ## b/w
 ##camera.saturation = -100
 camera = picamera.PiCamera()
-##camera.resolution = (500, 375) #use a smaller size to process faster, and tumblr will only take up to 500 pixels wide for animated gifs
-camera.resolution = (1024, 768)
+camera.resolution = (800, 480)
 camera.vflip = True
 camera.hflip = True
 
 
 
 GPIO.cleanup()
-GPIO.setmode(GPIO.BCM)
+GPIO.setmode(GPIO.BCM)    
 GPIO.setup(led1_pin,GPIO.OUT) # LED 1
-GPIO.setup(button1_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # LED 2
+GPIO.setup(button1_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # Big RED button
 GPIO.output(led1_pin,False);
 
 def preview(timeDelay, status='r'):
-    
     pygame.init()
     timeout = 1
     ticker = 0
-    PRsize = (1024,768)
+    PRsize = (800,480)
     screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
-    font = pygame.font.SysFont('freeserif', 42, bold=1)
+    font = pygame.font.SysFont('freeserif', 38, bold=1)
+    font1 = pygame.font.SysFont('freeserif', 42, bold=1)
     clk = pygame.time.Clock()
     clk.tick()
     if (status == 'r'):
         rgb = bytearray(camera.resolution[0] * camera.resolution[1] * 3)
+        ## Preview Loop
         while (timeDelay):
             clk.tick()
             stream = io.BytesIO()
@@ -69,43 +54,51 @@ def preview(timeDelay, status='r'):
      
             img = pygame.image.frombuffer(rgb[0:(PRsize[0] * PRsize[1] * 3)], (PRsize[0], PRsize[1]), 'RGB')
             screen.blit(img, (0,0))
-     
-            
-            
             ticker+=clk.get_time()
             if (ticker > 2000):
                 ticker = 0
                 timeDelay=timeDelay - 1
-            text = ":)  Smile   NOW   !!  " + str(timeDelay) 
+            text = ":)  SMILE   NOW   !!  " + str(timeDelay) 
             textSurface = font.render(text, 1, pygame.Color(255, 255, 255))
-            screen.blit(textSurface, (280, 380))
+            textSurface = pygame.transform.rotate(textSurface,90)
+            screen.blit(textSurface, (400, 175))
      
             # finally update and display the image
             pygame.display.update()
             
         screen.fill((255, 255, 255))
         pygame.display.update()
+    
+    ## Processing Screen
     elif (status == 'p'):
-        text = "Please Wait "
+        text = "  Wait.... "
         screen.fill((255, 255, 255))
         textSurface = font.render(text, 1, pygame.Color(255, 0, 0))
-        screen.blit(textSurface, (280, 380))
+        textSurface = pygame.transform.rotate(textSurface,90)
+        screen.blit(textSurface, (400, 175))
         pygame.display.update()
+    
+    ## Waiting Screen
     elif (status == 'w'):
-        text = "Ready !! Press the BIG red button"
+        text1 = "READY ?"
+        text = "HIT THE"
+        text2 ="BIG RED BUTTON"
         screen.fill((255, 255, 255))
+        font = pygame.font.SysFont('freeserif', 34, bold=1)
+        textSurface1 = font1.render(text1, 1, pygame.Color(0,255,0))
+        textSurface1 = pygame.transform.rotate(textSurface1,90)
         textSurface = font.render(text, 1, pygame.Color(255, 0, 0))
-        screen.blit(textSurface, (280, 380))
+        textSurface = pygame.transform.rotate(textSurface,90)
+        textSurface2 = font.render(text2, 1, pygame.Color(255, 0, 0))
+        textSurface2 = pygame.transform.rotate(textSurface2,90)
+        screen.blit(textSurface1, (300, 145))
+        screen.blit(textSurface, (450, 175))
+        screen.blit(textSurface2, (500, 91))
         pygame.display.update()
         
 
 def start_photobooth():
     while (True):
-        
-
-        
-
-#         camera.start_preview()
         preview(3)
         try: #take the photos
             for i, filename in enumerate(camera.capture_continuous(file_path + now + '-' + '{counter:02d}.jpg')):
@@ -120,6 +113,7 @@ def start_photobooth():
             camera.close()
             break
 
+## check internet connection
 def is_connected():
     try:
     # see if we can resolve the host name -- tells us if there is
@@ -133,6 +127,7 @@ def is_connected():
         pass
     return False
 
+## Send Email with pic
 def send_email():
     try:
         msg = MIMEMultipart()
@@ -163,19 +158,21 @@ def send_email():
             print('Something went wrong. Could not write file.')
             sys.exit(0) # quit Python
 
-
+## send print script and create image
 def printPic():
     cmd = ['sudo', './print.sh', now]
     pr = subprocess.Popen(cmd)
     pr.wait()
 
+
+## Main Loop
 while True:
     preview(1,'w')
     GPIO.output(led1_pin,True);
-    ##print "Get Ready" 
+    ##wait for button press 
     GPIO.wait_for_edge(button1_pin, GPIO.FALLING)
     GPIO.output(led1_pin,False);
-    time.sleep(0.2) #debounce
+    time.sleep(0.2) #debounce button press
     start_photobooth()
     preview(1,'p')
     printPic()
@@ -183,4 +180,3 @@ while True:
         send_email()
     GPIO.output(led1_pin,True);
     
-
